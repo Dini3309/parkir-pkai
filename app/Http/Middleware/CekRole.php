@@ -8,25 +8,30 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CekRole
 {
-    /**
-     * Handle an incoming request.
-     */
     public function handle(Request $request, Closure $next, ...$roles): Response
     {
-        // 1. Cek login menggunakan SESSION MANUAL aplikasi kamu
-        if (!session()->has('username')) {
-            return redirect('/login')->with('error', 'Silakan login terlebih dahulu.');
-        }
-
-        // 2. Ambil role dari session manual Anda
         $userRole = session('user_role');
 
-        // 3. Cek apakah role di session cocok dengan role yang diizinkan di web.php
-        if (in_array($userRole, $roles)) {
-            return $next($request);
+        if (!$userRole) {
+            return redirect()->route('login');
         }
 
-        // 4. Jika tidak cocok (misal admin mau buka punya owner dan belum diizinkan), lempar 403
-       abort(403, 'Role di session: [' . $userRole . ']');
+        // Pisahkan role yang dikirim melalui middleware
+        $rolesDiizinkan = [];
+
+        foreach ($roles as $role) {
+            $rolesDiizinkan = array_merge(
+                $rolesDiizinkan,
+                explode(',', $role)
+            );
+        }
+
+        $rolesDiizinkan = array_map('trim', $rolesDiizinkan);
+
+        if (!in_array($userRole, $rolesDiizinkan, true)) {
+            abort(403, 'Anda tidak memiliki akses ke halaman ini.');
+        }
+
+        return $next($request);
     }
 }

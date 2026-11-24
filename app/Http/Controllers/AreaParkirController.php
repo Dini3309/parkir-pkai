@@ -3,16 +3,36 @@
 namespace App\Http\Controllers;
 
 use App\Models\AreaParkir;
+use App\Models\Parkir;
 use Illuminate\Http\Request;
 
 class AreaParkirController extends Controller
 {
-    
     public function index()
     {
         $areaParkir = AreaParkir::all();
 
-        return view('area.index', compact('areaParkir'));
+        // Total seluruh area parkir
+        $totalArea = AreaParkir::count();
+
+        // Karena tabel tidak memiliki kolom status,
+        // semua area yang terdaftar dihitung sebagai aktif
+        $totalAktif = $totalArea;
+
+        // Total kapasitas seluruh area
+        $totalKapasitas = AreaParkir::sum('kapasitas');
+
+        // Jumlah kendaraan yang masih berada di area parkir
+        $totalTerisi = Parkir::where('status', 'masuk')
+            ->count();
+
+        return view('area.index', compact(
+            'areaParkir',
+            'totalArea',
+            'totalAktif',
+            'totalKapasitas',
+            'totalTerisi'
+        ));
     }
 
     public function create()
@@ -27,14 +47,19 @@ class AreaParkirController extends Controller
             'kapasitas' => 'required|numeric|min:1',
         ]);
 
-        AreaParkir::create($request->only(['nama_area', 'kapasitas']));
+        AreaParkir::create($request->only([
+            'nama_area',
+            'kapasitas'
+        ]));
 
-        return redirect()->route('area.index')->with('sukses', 'Area parkir berhasil ditambahkan.');
+        return redirect()->route('area.index')
+            ->with('sukses', 'Area parkir berhasil ditambahkan.');
     }
 
     public function edit($id)
     {
         $area = AreaParkir::findOrFail($id);
+
         return view('area.edit', compact('area'));
     }
 
@@ -46,14 +71,22 @@ class AreaParkirController extends Controller
         ]);
 
         $area = AreaParkir::findOrFail($id);
-        $area->update($request->only(['nama_area', 'kapasitas']));
 
-        return redirect()->route('area.index')->with('sukses', 'Data area berhasil diperbarui.');
+        $area->update($request->only([
+            'nama_area',
+            'kapasitas'
+        ]));
+
+        return redirect()->route('area.index')
+            ->with('sukses', 'Data area berhasil diperbarui.');
     }
 
     public function destroy($id)
     {
-        AreaParkir::findOrFail($id)->delete();
-        return redirect()->route('area.index')->with('sukses', 'Area parkir berhasil dihapus.');
+        $area = AreaParkir::findOrFail($id);
+        $area->delete();
+
+        return redirect()->route('area.index')
+            ->with('sukses', 'Area parkir berhasil dihapus.');
     }
 }

@@ -1,3 +1,4 @@
+
 <?php
 
 use Illuminate\Support\Facades\Route;
@@ -12,29 +13,36 @@ use App\Http\Controllers\ParkirController;
 use App\Http\Controllers\LogAktivitasController;
 use App\Http\Controllers\LaporanController;
 
-/*
-|--------------------------------------------------------------------------
-| LOGIN
-|--------------------------------------------------------------------------
-*/
-Route::get('/', [AuthController::class, 'showLogin']);
-Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-Route::post('/login', [AuthController::class, 'login'])->name('login.proses');
+/* =========================
+   LOGIN
+========================= */
 
-/*
-|--------------------------------------------------------------------------
-| ADMIN
-|--------------------------------------------------------------------------
-*/
+Route::get('/', [AuthController::class, 'showLogin']);
+
+Route::get('/login', [AuthController::class, 'showLogin'])
+    ->name('login');
+
+Route::post('/login', [AuthController::class, 'login'])
+    ->name('login.proses');
+
+Route::post('/logout', [AuthController::class, 'logout'])
+    ->name('logout');
+
+
+/* =========================
+   ADMIN
+========================= */
+
 Route::middleware(['cekrole:admin'])->group(function () {
 
     Route::get('/admin/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
 
-    Route::resource('/pengguna', PenggunaController::class)->except(['show']);
+    Route::resource('/pengguna', PenggunaController::class)
+        ->except(['show']);
 
-    Route::resource('/tarif', TarifController::class)->except(['show']);
+    Route::resource('/tarif', TarifController::class)
+        ->except(['show']);
 
     Route::resource('/area-parkir', AreaParkirController::class)
         ->except(['show'])
@@ -47,45 +55,37 @@ Route::middleware(['cekrole:admin'])->group(function () {
         ->name('log.index');
 });
 
-/*
-|--------------------------------------------------------------------------
-| PETUGAS & ADMIN (Agar Admin juga bisa buka Transaksi)
-|--------------------------------------------------------------------------
-*/
-Route::middleware(['cekrole:petugas,admin'])->group(function () {
 
-    // Dashboard Petugas
-    Route::get('/petugas/dashboard', [DashboardController::class, 'petugas'])->name('petugas.dashboard');
+/* =========================
+   PETUGAS
+========================= */
 
-    // Parkir / Transaksi (URL: /transaksi)
-    Route::resource('/transaksi', ParkirController::class)->except(['show'])->names('parkir');
+Route::middleware(['cekrole:petugas'])->group(function () {
 
-    // Cetak Struk
-    Route::get('/transaksi/{id}/struk', [ParkirController::class, 'struk'])->name('parkir.struk');
+    Route::get('/petugas/dashboard', [DashboardController::class, 'petugas'])
+        ->name('petugas.dashboard');
 
+    Route::post('/transaksi/{id}/keluar', [ParkirController::class, 'keluar'])
+        ->name('parkir.keluar');
+
+    Route::resource('/transaksi', ParkirController::class)
+        ->except(['show'])
+        ->names('parkir');
+
+    Route::get('/transaksi/{id}/struk', [ParkirController::class, 'struk'])
+        ->name('parkir.struk');
 });
 
-/*
-|--------------------------------------------------------------------------
-| OWNER
-|--------------------------------------------------------------------------
-*/
+
+/* =========================
+   OWNER
+========================= */
+
 Route::middleware(['cekrole:owner'])->group(function () {
 
-    // Dashboard Owner
-    Route::get('/owner/dashboard', [DashboardController::class, 'owner'])->name('owner.dashboard');
+    Route::get('/owner/dashboard', [DashboardController::class, 'owner'])
+        ->name('owner.dashboard');
 
+    Route::get('/owner/rekap-transaksi', [LaporanController::class, 'index'])
+        ->name('owner.rekap');
 });
-
-/*
-|--------------------------------------------------------------------------
-| JALUR KHUSUS REKAP / LAPORAN (BEBAS AKSES UNTUK TESTING)
-|--------------------------------------------------------------------------
-*/
-// Sudah diganti menjadi /rekap agar pas dancok/cocok dengan tombol sidebar bos!
-Route::get('/rekap', [LaporanController::class, 'index'])->name('laporan.index');
-
-
-Route::get('/laporan', function () {
-    return view('laporan.index');
-})->name('laporan');

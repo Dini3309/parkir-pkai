@@ -6,12 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 
 class Tarif extends Model
 {
-    protected $table = 'tb_tarif';
+    protected $table = 'tb_id_tarif';
 
     protected $primaryKey = 'id_tarif';
 
+    public $timestamps = false;
+
     protected $fillable = [
         'jenis_kendaraan',
-        'tarif_per_jam'
+        'tarif_per_jam',
     ];
 }

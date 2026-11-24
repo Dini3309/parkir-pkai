@@ -15,114 +15,118 @@ class AuthController extends Controller
         return view('login');
     }
 
-
     // Proses login
     public function login(Request $request)
     {
-        // Validasi
         $request->validate([
             'username' => 'required',
             'password' => 'required',
-            'role'     => 'required',
+            'role' => 'required',
         ]);
 
+        // Membersihkan spasi username
+        $username = trim($request->username);
 
-        // Cari username
+        // Mencari akun berdasarkan username
         $user = DB::table('tb_user')
-            ->where('username', $request->username)
+            ->whereRaw('LOWER(TRIM(username)) = ?', [
+                strtolower($username)
+            ])
             ->first();
 
-
-        // Username tidak ditemukan
+        // Jika username tidak ditemukan
         if (!$user) {
             return back()
                 ->withErrors([
                     'login' => 'Username tidak ditemukan.'
                 ])
-                ->withInput();
+                ->withInput($request->only('username', 'role'));
         }
 
+        // Memeriksa password
+        $passwordDatabase = (string) $user->password;
+        $passwordInput = (string) $request->password;
 
-        // Cek password
-        $passwordBenar = false;
-
-        // Kalau password di database sudah HASH
-        if (Hash::check($request->password, $user->password)) {
-            $passwordBenar = true;
+        if (
+            str_starts_with($passwordDatabase, '$2y$') ||
+            str_starts_with($passwordDatabase, '$argon2')
+        ) {
+            $passwordBenar = Hash::check(
+                $passwordInput,
+                $passwordDatabase
+            );
+        } else {
+            $passwordBenar = hash_equals(
+                $passwordDatabase,
+                $passwordInput
+            );
         }
-
-        // Untuk database lama yang password-nya masih teks biasa
-        if ($request->password === $user->password) {
-            $passwordBenar = true;
-        }
-
 
         if (!$passwordBenar) {
             return back()
                 ->withErrors([
                     'login' => 'Password salah.'
                 ])
-                ->withInput();
+                ->withInput($request->only('username', 'role'));
         }
 
+        // Memeriksa role
+        $roleDatabase = strtolower(trim($user->role));
+        $roleInput = strtolower(trim($request->role));
 
-        // Cek role
-        if ($user->role !== $request->role) {
+        if ($roleDatabase !== $roleInput) {
             return back()
                 ->withErrors([
                     'login' => 'Role tidak sesuai dengan akun.'
                 ])
-                ->withInput();
+                ->withInput($request->only('username', 'role'));
         }
 
-
-        // Cek status aktif
-        if (isset($user->status_aktif) && $user->status_aktif != 1) {
+        // Memeriksa status akun
+        if (
+            isset($user->status_aktif) &&
+            $user->status_aktif != 1
+        ) {
             return back()
                 ->withErrors([
                     'login' => 'Akun sedang tidak aktif.'
                 ])
-                ->withInput();
+                ->withInput($request->only('username', 'role'));
         }
 
-
-        // Simpan session
+        // Menyimpan session
         Session::put('user_id', $user->id_user);
         Session::put('username', $user->username);
-        Session::put('user_role', $user->role);
+        Session::put('user_role', $roleDatabase);
 
+        Session::regenerate();
 
-        // Login berhasil
-        if ($user->role === 'admin') {
-
+        // Mengarahkan sesuai role
+        if ($roleDatabase === 'admin') {
             return redirect()
                 ->route('dashboard')
                 ->with('success', 'Login sebagai Admin berhasil.');
         }
 
-
-        if ($user->role === 'petugas') {
-
+        if ($roleDatabase === 'petugas') {
             return redirect()
                 ->route('petugas.dashboard')
                 ->with('success', 'Login sebagai Petugas berhasil.');
         }
 
-
-        if ($user->role === 'owner') {
-
+        if ($roleDatabase === 'owner') {
             return redirect()
                 ->route('owner.dashboard')
                 ->with('success', 'Login sebagai Owner berhasil.');
         }
 
+        Session::flush();
 
         return back()
             ->withErrors([
                 'login' => 'Role akun tidak dikenali.'
             ]);
     }
-
 
     // Logout
     public function logout()
